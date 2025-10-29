@@ -1,0 +1,42 @@
+QR Market — Установка и запуск
+
+===== Вариант A: Docker =====
+1) Установите Docker и Docker Compose.
+2) Скопируйте .env.example в .env и заполните значения (SECRET_KEY, RPC).
+   На старте подойдёт:
+     BSC_RPC=https://bsc-dataseed.binance.org/
+     TRON_NODE=https://api.trongrid.io
+3) В каталоге qr_market выполните:
+     docker compose up --build -d
+4) Откройте http://localhost:8000 — откроется демо-страница.
+   API доступно по /docs
+
+===== Вариант B: Локально (Python) =====
+1) Python 3.10+
+2) python -m venv venv
+   source venv/bin/activate  (Windows: venv\Scripts\activate)
+   pip install -r requirements.txt
+3) Скопируйте .env.example в .env, отредактируйте RPC.
+4) uvicorn main:app --reload
+5) Откройте http://localhost:8000
+
+===== Как пользоваться =====
+1) Зарегистрируйтесь / Войдите (на странице, или через /docs).
+2) Создайте лот: укажите цену, сеть (BEP20 или TRC20), адрес приёма, загрузите QR или текст для генерации.
+3) Покупатель нажимает "Купить", видит адрес и сумму, переводит средства.
+4) Сервис периодически проверяет блокчейн (BSC готов; TRON — заглушка, подключите TronGrid/индексер).
+5) После оплаты статус станет "paid" и станет доступна кнопка загрузки QR.
+
+ВАЖНО: Файл payments.py содержит упрощённую проверку:
+  - BSC/BEP20: скан последних блоков на входящие переводы (для демо).
+  - TRON/TRC20: для корректной работы подключите TronGrid API и реализуйте поиск событий Transfer(to=адрес).
+
+Подключение TronGrid (подсказка):
+  - Создайте ключ TronGrid, сделайте запрос:
+    GET https://api.trongrid.io/v1/contracts/{TOKEN}/events?event_name=Transfer&limit=200&sort=-block_timestamp&filter=to=={ADDRESS}
+  - Сопоставьте amount/decimals и сравните с price_amount.
+
+Безопасность и продакшен:
+  - Не храните приватные ключи на сервере (здесь не нужно).
+  - Используйте выделенные RPC/индексеры (Moralis/QuickNode/Ankr/TronGrid).
+  - Добавьте валидацию сумм, валют, мемо/меток, обработку возвратов, логирование, HTTPS.
