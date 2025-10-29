@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>QR Market — Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 16px}
+    input,select,button{padding:8px;margin:4px}
+    .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+  </style>
+  <!-- React via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+  <h1>QR Market — Demo</h1>
+  <div id="app"></div>
+
+  <script type="text/babel">
+  const api = (path, opts={}) => fetch(path, opts).then(r=>r.json());
+  function App(){
+    const [token, setToken] = React.useState("");
+    const [lots, setLots] = React.useState([]);
+    const [form, setForm] = React.useState({title:"Hello QR", price:0.1, currency:"BEP20", token_contract:"", receive_address:""});
+
+    const load = ()=> api("/api/qr/list").then(setLots);
+    React.useEffect(()=>{ load(); },[]);
+
+    const register = async (e)=>{
+      e.preventDefault();
+      const u = e.target.username.value, p = e.target.password.value;
+      const res = await api("/api/register",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:u,password:p})});
+      alert(res.username ? "Регистрация ок" : JSON.stringify(res));
+    };
+    const login = async (e)=>{
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await api("/api/login",{method:"POST", body:formData});
+      if(res.access_token){ setToken(res.access_token); alert("Вход выполнен"); }
+      else alert(JSON.stringify(res));
+    };
+    const createLot = async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await api("/api/qr/create",{method:"POST", headers:{Authorization:`Bearer ${token}`}, body:fd});
+      if(res.id){ load(); e.target.reset(); alert("Лот создан"); } else alert(JSON.stringify(res));
+    };
+    const buy = async (id)=>{
+      const buyer = prompt("Ваше имя покупателя?");
+      if(!buyer) return;
+      const fd = new FormData(); fd.append("buyer", buyer);
+      const res = await api(`/api/qr/${id}/buy`, {method:"POST", body:fd});
+      alert("Оплатите: " + JSON.stringify(res, null, 2));
+      load();
+    };
+    const check = async ()=>{
+      const res = await api("/api/check_payments", {method:"POST"});
+      alert(JSON.stringify(res));
+      load();
+    };
+
+    return <div>
+      <div className="card">
+        <h2>Регистрация</h2>
+        <form onSubmit={register} className="row">
+          <input name="username" placeholder="username" required/>
+          <input name="password" type="password" placeholder="password" required/>
+          <button>Зарегистрироваться</button>
+        </form>
+        <h2>Вход</h2>
+        <form onSubmit={login} className="row">
+          <input name="username" placeholder="username" required/>
+          <input name="password" type="password" placeholder="password" required/>
+          <button>Войти</button>
+        </form>
+      </div>
+
+      <div className="card">
+        <h2>Создать лот (продажа QR)</h2>
+        <form onSubmit={createLot}>
+          <div className="row">
+            <input name="title" placeholder="Название/данные для QR" required/>
+            <input name="price" type="number" step="0.00000001" placeholder="Цена" required/>
+            <select name="currency">
+              <option value="BEP20">BEP20 (BNB/BSC)</option>
+              <option value="TRC20">TRC20 (TRON)</option>
+            </select>
+            <input name="token_contract" placeholder="Контракт токена (если не BNB/TRX)"/>
+            <input name="receive_address" placeholder="Адрес для оплаты" required style={{minWidth:'360px'}}/>
+            <input name="file" type="file" accept="image/png,image/jpeg"/>
+            <button disabled={!token}>Создать</button>
+          </div>
+          {!token && <p>Сначала войдите (получите токен).</p>}
+        </form>
+      </div>
+
+      <div className="card">
+        <h2>Лоты</h2>
+        <button onClick={load}>Обновить список</button>
+        <button onClick={check} style={{marginLeft:8}}>Ручная проверка оплат</button>
+        {lots.map(l => (
+          <div key={l.id} className="card">
+            <b>#{l.id} {l.title}</b> — {l.price} {l.currency} — статус: <b>{l.status}</b><br/>
+            Продавец: {l.seller}, Адрес для оплаты: <code>{l.receive_address}</code><br/>
+            {l.status === "available" && <button onClick={()=>buy(l.id)}>Купить</button>}
+            {l.status === "paid" && <a href={`/api/qr/${l.id}/download`} target="_blank" rel="noreferrer">Скачать QR</a>}
+          </div>
+        ))}
+      </div>
+    </div>;
+  }
+
+  ReactDOM.createRoot(document.getElementById('app')).render(<App/>)
+  </script>
+</body>
+</html>
