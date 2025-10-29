@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+databases
+pydantic
+python-jose[cryptography]
+passlib[bcrypt]
+qrcode
+Pillow
+requests
+web3
+tronpy
+apscheduler
+python-dotenv
